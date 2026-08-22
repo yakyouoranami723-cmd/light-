@@ -17,29 +17,22 @@
     <style>
         body { background-color: #0b0c10; color: #fff; font-family: 'Helvetica Neue', Arial, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100dvh; margin: 0; overflow: hidden; }
         #avatar-container { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1; pointer-events: none; }
-        
-        /* 配信風レイアウトに変更 */
         #main-app { display: none; flex-direction: column; align-items: center; justify-content: flex-end; width: 100%; height: 100%; position: relative; z-index: 10; padding-bottom: 20px; box-sizing: border-box; }
-        
-        /* ヘッダーは上部に固定 */
         #header-bar { position: absolute; top: 20px; width: 90%; max-width: 650px; display: flex; justify-content: space-between; align-items: center; z-index: 20; }
         .app-title { font-weight: bold; font-size: 16px; color: #ff7eb3; letter-spacing: 1px; text-shadow: 0 0 10px rgba(255,126,179,0.5); }
         .icon-btn { background: rgba(0, 0, 0, 0.4); border: 1px solid #ff7eb3; color: #fff; padding: 6px 14px; border-radius: 20px; cursor: pointer; font-size: 13px; transition: all 0.2s; backdrop-filter: blur(5px); }
         .icon-btn:hover { background: rgba(255, 126, 179, 0.6); }
 
-        /* TikTok LIVE風 チャットログ */
         #chat-log { 
             width: 90%; max-width: 650px; height: 40vh; max-height: 350px; 
             background: transparent; padding: 10px; overflow-y: auto; margin-bottom: 10px; 
             border: none; box-shadow: none; font-size: 14px; line-height: 1.5; box-sizing: border-box; 
             display: flex; flex-direction: column; scroll-behavior: smooth;
-            /* 上にスクロールするにつれてフェードアウトする効果 */
             mask-image: linear-gradient(to bottom, transparent 0%, black 15%);
             -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 15%);
         }
-        #chat-log::-webkit-scrollbar { display: none; } /* スクロールバー非表示 */
+        #chat-log::-webkit-scrollbar { display: none; }
 
-        /* チャットメッセージの吹き出しスタイル */
         .msg-wrapper { display: flex; margin-bottom: 8px; width: 100%; }
         .msg-container { padding: 6px 12px; border-radius: 14px; background: rgba(0, 0, 0, 0.4); backdrop-filter: blur(4px); text-shadow: 1px 1px 2px rgba(0,0,0,0.8); max-width: 85%; word-wrap: break-word; }
         .msg-sys { color: #88c0d0; font-size: 12px; } 
@@ -56,7 +49,6 @@
         #chat-input { flex-grow: 1; border: 1px solid rgba(255, 255, 255, 0.3); background: rgba(0,0,0,0.5); color: white; backdrop-filter: blur(5px); }
         #send-btn { background: linear-gradient(135deg, #4facfe, #00f2fe); color: white; box-shadow: 0 4px 15px rgba(79, 172, 254, 0.4); flex-shrink: 0; min-width: 70px; }
         
-        /* 設定モーダル周り */
         #settings-modal { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.75); backdrop-filter: blur(5px); justify-content: center; align-items: center; z-index: 1000; }
         .modal-content { background: #161823; border: 1px solid #ff7eb3; border-radius: 16px; width: 85%; max-width: 420px; padding: 20px; box-shadow: 0 0 30px rgba(255, 126, 179, 0.3); max-height: 90vh; overflow-y: auto; }
         .modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding-bottom: 10px; margin-bottom: 15px; }
@@ -69,7 +61,6 @@
         #sync-id-input { width: 100%; box-sizing: border-box; background: rgba(0,0,0,0.5); color: #f1c40f; border: 1px solid #f1c40f; text-align: center; font-weight: bold; letter-spacing: 2px; border-radius: 5px; padding: 8px; margin-bottom: 8px; }
         .sync-btn { background: #f1c40f; color: #000; width: 100%; border-radius: 5px; padding: 8px; border: none; font-weight: bold; cursor: pointer; }
         
-        /* ログイン画面 */
         #login-screen { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; background: #0b0c10; z-index: 2000; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
         .login-title { color: #ff7eb3; font-size: 24px; font-weight: bold; margin-bottom: 10px; letter-spacing: 2px; }
         .login-desc { color: #ccc; font-size: 14px; margin-bottom: 30px; }
@@ -96,9 +87,7 @@
             <div class="app-title">✨ ライト</div>
             <button id="open-settings-btn" class="icon-btn">⚙️ 設定</button>
         </div>
-        <div id="chat-log">
-            <!-- チャットがここに追加されます -->
-        </div>
+        <div id="chat-log"></div>
         <div class="controls">
             <button id="talk-btn">🎤</button>
             <input type="text" id="chat-input" placeholder="コメントを追加...">
@@ -114,7 +103,7 @@
             </div>
             <div class="setting-row">
                 <span>ボイス再生（音声）</span>
-                <button id="mute-toggle-btn" class="icon-btn" style="border-color: #bf616a;">🔇 音声 OFF</button>
+                <button id="mute-toggle-btn" class="icon-btn" style="border-color: #ff7eb3;">🔊 音声 ON</button>
             </div>
             <div class="section-title">☁️ クラウド記憶同期 (合言葉)</div>
             <div class="sync-box">
@@ -153,7 +142,7 @@
         const db = getFirestore(app);
         const API_KEY = "AQ.Ab8RN6LFpA-TEL3AGVk6l5KQe7Pgi9w455ROTO2txXm5m6SeTg"; 
 
-        window.isMuted = true;
+        window.isMuted = false; // デフォルトで音声ONに設定
         window.selfReflections = [];
         window.userFacts = [];
         window.globalFacts = [];
@@ -161,6 +150,24 @@
         window.conversationHistory = []; 
         let myUserId = "";
         const GLOBAL_CLUB_ID = "shout_club_global_space";
+
+        // リップシンク用 Web Audio API
+        let audioCtx = null;
+        let analyser = null;
+        let audioSourceNode = null;
+        let currentAudioElement = null;
+        let currentVolume = 0;
+
+        function initAudioContext() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                analyser = audioCtx.createAnalyser();
+                analyser.fftSize = 256;
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
 
         const chatLog = document.getElementById('chat-log');
         const chatInput = document.getElementById('chat-input');
@@ -174,6 +181,7 @@
         document.getElementById('login-id-input').value = savedId || "shout";
 
         function unlockAudio() {
+            initAudioContext();
             if ('speechSynthesis' in window) {
                 const dummy = new SpeechSynthesisUtterance('');
                 dummy.volume = 0;
@@ -209,19 +217,14 @@
                 `自己改善: ${window.selfReflections.length} | 個人記憶: ${window.userFacts.length} | 部活共有: ${window.globalFacts.length}`;
         }
 
-        // 配信風チャットログ追加関数
         function addLog(name, text, type = 'user') {
             const wrapper = document.createElement('div');
             wrapper.className = 'msg-wrapper';
-            
             const div = document.createElement('div');
             div.className = `msg-container msg-${type}`;
             div.innerHTML = `<strong>${name}</strong>: ${text}`;
-            
             wrapper.appendChild(div);
             chatLog.appendChild(wrapper);
-            
-            // 常に最新メッセージへスクロール
             chatLog.scrollTop = chatLog.scrollHeight;
         }
 
@@ -287,7 +290,7 @@
             if(window.isMuted) {
                 muteBtn.textContent = "🔇 音声 OFF";
                 muteBtn.style.borderColor = "#bf616a";
-                if (window.currentAudio) window.currentAudio.pause();
+                if (currentAudioElement) currentAudioElement.pause();
                 window.speechSynthesis.cancel();
             } else {
                 muteBtn.textContent = "🔊 音声 ON";
@@ -307,28 +310,41 @@
             }
         });
 
-        window.currentAudio = null; 
+        // リップシンク連動型 音声再生処理
         window.speak = function(text) {
             if (window.isMuted) return;
-            if (window.currentAudio) { window.currentAudio.pause(); window.currentAudio = null; }
+            initAudioContext();
+
+            if (currentAudioElement) { currentAudioElement.pause(); currentAudioElement = null; }
             window.speechSynthesis.cancel();
+            
             const cleanText = text.replace(/[#*「」『』（）()【】_~〜]/g, '').trim();
             if (!cleanText) return;
 
             const url = `https://api.tts.quest/v3/voicevox/synthesis?text=${encodeURIComponent(cleanText)}&speaker=8`;
             const audio = new Audio(url);
-            window.currentAudio = audio;
-            let hasFiredFallback = false;
-            
-            const fallback = () => {
-                if (!hasFiredFallback && window.currentAudio === audio) {
-                    hasFiredFallback = true;
-                    window.speechSynthesis.cancel();
-                    const uttr = new SpeechSynthesisUtterance(cleanText);
-                    uttr.lang = 'ja-JP'; uttr.rate = 1.1; uttr.pitch = 1.3; 
-                    window.speechSynthesis.speak(uttr);
+            audio.crossOrigin = "anonymous";
+            currentAudioElement = audio;
+
+            let sourceConnected = false;
+            audio.addEventListener('canplaythrough', () => {
+                if (!sourceConnected && audioCtx && analyser) {
+                    try {
+                        audioSourceNode = audioCtx.createMediaElementSource(audio);
+                        audioSourceNode.connect(analyser);
+                        analyser.connect(audioCtx.destination);
+                        sourceConnected = true;
+                    } catch(e) { console.warn("AudioContext connection skip:", e); }
                 }
+            });
+
+            const fallback = () => {
+                window.speechSynthesis.cancel();
+                const uttr = new SpeechSynthesisUtterance(cleanText);
+                uttr.lang = 'ja-JP'; uttr.rate = 1.1; uttr.pitch = 1.3; 
+                window.speechSynthesis.speak(uttr);
             }
+
             audio.play().catch(fallback);
             audio.onerror = fallback;
         };
@@ -401,7 +417,7 @@ ${window.pdfKnowledge}
         if (SpeechRecognition) {
             const recognition = new SpeechRecognition();
             recognition.lang = 'ja-JP';
-            talkBtn.addEventListener('click', () => { try { recognition.start(); } catch(e){} });
+            talkBtn.addEventListener('click', () => { unlockAudio(); try { recognition.start(); } catch(e){} });
             recognition.onresult = (e) => processUserInput(e.results[0][0].transcript);
         } else { talkBtn.style.display = 'none'; }
 
@@ -423,13 +439,10 @@ ${window.pdfKnowledge}
             } catch (err) { addLog("システム", "PDF読み込み失敗", 'error'); }
         });
 
-        // ==========================================
-        // 3D レンダリング処理 & 自然なポーズとカメラ調整
-        // ==========================================
+        // 3D レンダリング処理
         const container = document.getElementById('avatar-container');
         const scene = new THREE.Scene();
         
-        // ★ カメラを引いて全身（膝〜太もも上）が映るように調整
         const camera = new THREE.PerspectiveCamera(30, window.innerWidth / window.innerHeight, 0.1, 20.0);
         camera.position.set(0, 0.9, 2.5); 
         camera.lookAt(0, 0.9, 0);
@@ -461,7 +474,6 @@ ${window.pdfKnowledge}
                 scene.add(vrm.scene);
                 VRMUtils.rotateVRM0(vrm);
 
-                // ★ Tポーズを解除し、自然な立ち姿（腕を下ろす）に調整
                 if (vrm.humanoid) {
                     const leftArm = vrm.humanoid.getNormalizedBoneNode('leftUpperArm');
                     const rightArm = vrm.humanoid.getNormalizedBoneNode('rightUpperArm');
@@ -470,7 +482,6 @@ ${window.pdfKnowledge}
                     const leftHand = vrm.humanoid.getNormalizedBoneNode('leftHand');
                     const rightHand = vrm.humanoid.getNormalizedBoneNode('rightHand');
                     
-                    // 腕を下ろし、少し肘を曲げてリラックスさせる
                     if (leftArm) { leftArm.rotation.z = 1.15; leftArm.rotation.x = 0.1; }
                     if (rightArm) { rightArm.rotation.z = -1.15; rightArm.rotation.x = 0.1; }
                     if (leftLowerArm) leftLowerArm.rotation.x = -0.15;
@@ -490,14 +501,33 @@ ${window.pdfKnowledge}
         });
 
         const clock = new THREE.Clock();
+        const dataArray = new Uint8Array(128);
+
         function animate() {
             requestAnimationFrame(animate);
             const delta = clock.getDelta();
+
+            // 音圧解析によるリップシンクの計算
+            if (analyser) {
+                analyser.getByteFrequencyData(dataArray);
+                let sum = 0;
+                for (let i = 0; i < dataArray.length; i++) {
+                    sum += dataArray[i];
+                }
+                const average = sum / dataArray.length;
+                // 音圧を0.0〜1.0の開口度に変換
+                currentVolume = Math.min(1.0, Math.max(0.0, (average - 10) / 40));
+            }
+
             if (currentVrm) {
-                // 呼吸運動の簡易アニメーション
                 const t = clock.getElapsedTime();
                 const chest = currentVrm.humanoid.getNormalizedBoneNode('chest');
                 if (chest) chest.rotation.x = Math.sin(t * 2) * 0.02;
+
+                // ★ リップシンク（口を開ける「aa」パラメータをリアルタイム更新）
+                if (currentVrm.expressionManager) {
+                    currentVrm.expressionManager.setValue('aa', currentVolume);
+                }
 
                 currentVrm.update(delta);
             }
