@@ -17,6 +17,7 @@
     <style>
         body { background-color: #0b0c10; color: #fff; font-family: 'Helvetica Neue', Arial, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100dvh; margin: 0; overflow: hidden; }
         #avatar-container { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1; pointer-events: none; }
+        
         #main-app { display: none; flex-direction: column; align-items: center; justify-content: flex-end; width: 100%; height: 100%; position: relative; z-index: 10; padding-bottom: 20px; box-sizing: border-box; }
         #header-bar { position: absolute; top: 20px; width: 90%; max-width: 650px; display: flex; justify-content: space-between; align-items: center; z-index: 20; }
         .app-title { font-weight: bold; font-size: 16px; color: #ff7eb3; letter-spacing: 1px; text-shadow: 0 0 10px rgba(255,126,179,0.5); }
@@ -103,7 +104,7 @@
             </div>
             <div class="setting-row">
                 <span>ボイス再生（音声）</span>
-                <button id="mute-toggle-btn" class="icon-btn" style="border-color: #ff7eb3;">🔊 音声 ON</button>
+                <button id="mute-toggle-btn" class="icon-btn" style="border-color: #bf616a;">🔇 音声 OFF</button>
             </div>
             <div class="section-title">☁️ クラウド記憶同期 (合言葉)</div>
             <div class="sync-box">
@@ -142,7 +143,7 @@
         const db = getFirestore(app);
         const API_KEY = "AQ.Ab8RN6LFpA-TEL3AGVk6l5KQe7Pgi9w455ROTO2txXm5m6SeTg"; 
 
-        window.isMuted = false; // デフォルトで音声ONに設定
+        window.isMuted = true;
         window.selfReflections = [];
         window.userFacts = [];
         window.globalFacts = [];
@@ -150,24 +151,6 @@
         window.conversationHistory = []; 
         let myUserId = "";
         const GLOBAL_CLUB_ID = "shout_club_global_space";
-
-        // リップシンク用 Web Audio API
-        let audioCtx = null;
-        let analyser = null;
-        let audioSourceNode = null;
-        let currentAudioElement = null;
-        let currentVolume = 0;
-
-        function initAudioContext() {
-            if (!audioCtx) {
-                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                analyser = audioCtx.createAnalyser();
-                analyser.fftSize = 256;
-            }
-            if (audioCtx.state === 'suspended') {
-                audioCtx.resume();
-            }
-        }
 
         const chatLog = document.getElementById('chat-log');
         const chatInput = document.getElementById('chat-input');
@@ -180,12 +163,24 @@
         const savedId = localStorage.getItem('light_sync_id');
         document.getElementById('login-id-input').value = savedId || "shout";
 
+        // ==========================================
+        // リップシンク用 Web Audio API セットアップ
+        // ==========================================
+        window.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        window.analyser = window.audioCtx.createAnalyser();
+        window.analyser.fftSize = 256;
+        window.analyser.connect(window.audioCtx.destination);
+        window.dataArray = new Uint8Array(window.analyser.frequencyBinCount);
+        window.currentAudioSource = null;
+
         function unlockAudio() {
-            initAudioContext();
             if ('speechSynthesis' in window) {
                 const dummy = new SpeechSynthesisUtterance('');
                 dummy.volume = 0;
                 window.speechSynthesis.speak(dummy);
+            }
+            if (window.audioCtx.state === 'suspended') {
+                window.audioCtx.resume();
             }
         }
 
@@ -231,7 +226,6 @@
         async function loadAllData(userId) {
             try {
                 addLog("システム", `クラウド連携待機中...`, "sys");
-                addLog("システム", `クラウドから記憶を読み込み中...`, "sys");
                 const userDocSnap = await getDoc(doc(db, "light_memories", userId));
                 if (userDocSnap.exists()) {
                     const data = userDocSnap.data();
@@ -290,11 +284,12 @@
             if(window.isMuted) {
                 muteBtn.textContent = "🔇 音声 OFF";
                 muteBtn.style.borderColor = "#bf616a";
-                if (currentAudioElement) currentAudioElement.pause();
+                if (window.currentAudioSource) window.currentAudioSource.stop();
                 window.speechSynthesis.cancel();
             } else {
                 muteBtn.textContent = "🔊 音声 ON";
                 muteBtn.style.borderColor = "#ff7eb3";
+                if (window.audioCtx.state === 'suspended') window.audioCtx.resume();
             }
         });
 
@@ -310,43 +305,43 @@
             }
         });
 
-        // リップシンク連動型 音声再生処理
-        window.speak = function(text) {
+        // ==========================================
+        // リップシンク対応 音声再生関数
+        // ==========================================
+        window.speak = async function(text) {
             if (window.isMuted) return;
-            initAudioContext();
-
-            if (currentAudioElement) { currentAudioElement.pause(); currentAudioElement = null; }
             window.speechSynthesis.cancel();
-            
             const cleanText = text.replace(/[#*「」『』（）()【】_~〜]/g, '').trim();
             if (!cleanText) return;
 
+            if (window.audioCtx.state === 'suspended') await window.audioCtx.resume();
+            if (window.currentAudioSource) {
+                try { window.currentAudioSource.stop(); } catch(e){}
+            }
+
+            // VoiceVox API (無料・高品質)
             const url = `https://api.tts.quest/v3/voicevox/synthesis?text=${encodeURIComponent(cleanText)}&speaker=8`;
-            const audio = new Audio(url);
-            audio.crossOrigin = "anonymous";
-            currentAudioElement = audio;
 
-            let sourceConnected = false;
-            audio.addEventListener('canplaythrough', () => {
-                if (!sourceConnected && audioCtx && analyser) {
-                    try {
-                        audioSourceNode = audioCtx.createMediaElementSource(audio);
-                        audioSourceNode.connect(analyser);
-                        analyser.connect(audioCtx.destination);
-                        sourceConnected = true;
-                    } catch(e) { console.warn("AudioContext connection skip:", e); }
-                }
-            });
+            try {
+                // 音声データをバイナリとして取得し、AudioContextで解析＆再生
+                const response = await fetch(url);
+                if (!response.ok) throw new Error("VoiceVox Error");
+                const arrayBuffer = await response.arrayBuffer();
+                const audioBuffer = await window.audioCtx.decodeAudioData(arrayBuffer);
 
-            const fallback = () => {
-                window.speechSynthesis.cancel();
+                const source = window.audioCtx.createBufferSource();
+                source.buffer = audioBuffer;
+                
+                // リップシンク用のアナライザーに接続
+                source.connect(window.analyser);
+                source.start(0);
+                window.currentAudioSource = source;
+            } catch (error) {
+                console.warn("高品質音声の取得に失敗。ブラウザ音声にフォールバックします。", error);
                 const uttr = new SpeechSynthesisUtterance(cleanText);
                 uttr.lang = 'ja-JP'; uttr.rate = 1.1; uttr.pitch = 1.3; 
                 window.speechSynthesis.speak(uttr);
             }
-
-            audio.play().catch(fallback);
-            audio.onerror = fallback;
         };
 
         async function callGemini(userText) {
@@ -417,29 +412,13 @@ ${window.pdfKnowledge}
         if (SpeechRecognition) {
             const recognition = new SpeechRecognition();
             recognition.lang = 'ja-JP';
-            talkBtn.addEventListener('click', () => { unlockAudio(); try { recognition.start(); } catch(e){} });
+            talkBtn.addEventListener('click', () => { try { recognition.start(); } catch(e){} });
             recognition.onresult = (e) => processUserInput(e.results[0][0].transcript);
         } else { talkBtn.style.display = 'none'; }
 
-        document.getElementById('pdf-btn').addEventListener('click', () => document.getElementById('pdf-upload').click());
-        document.getElementById('pdf-upload').addEventListener('change', async (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-            try {
-                const arrayBuffer = await file.arrayBuffer();
-                const pdf = await pdfjsLib.getDocument({data: arrayBuffer}).promise;
-                let fullText = "";
-                for (let i = 1; i <= pdf.numPages; i++) {
-                    const page = await pdf.getPage(i);
-                    fullText += (await page.getTextContent()).items.map(item => item.str).join(" ") + "\n";
-                }
-                window.pdfKnowledge = `\n\n【追加知識】\n${fullText.substring(0, 10000)}`;
-                addLog("ライト", "その資料、頭に入れたぜ！", 'ai');
-                settingsModal.style.display = 'none';
-            } catch (err) { addLog("システム", "PDF読み込み失敗", 'error'); }
-        });
-
-        // 3D レンダリング処理
+        // ==========================================
+        // 3D レンダリング処理 & リップシンクアニメーション
+        // ==========================================
         const container = document.getElementById('avatar-container');
         const scene = new THREE.Scene();
         
@@ -491,7 +470,7 @@ ${window.pdfKnowledge}
                 }
             },
             undefined,
-            (error) => addLog("システム", "light.vrmの読み込みに失敗しました。publicフォルダを確認してください。", "error")
+            (error) => addLog("システム", "light.vrmの読み込みに失敗しました。", "error")
         );
 
         window.addEventListener('resize', () => {
@@ -501,32 +480,34 @@ ${window.pdfKnowledge}
         });
 
         const clock = new THREE.Clock();
-        const dataArray = new Uint8Array(128);
-
         function animate() {
             requestAnimationFrame(animate);
             const delta = clock.getDelta();
-
-            // 音圧解析によるリップシンクの計算
-            if (analyser) {
-                analyser.getByteFrequencyData(dataArray);
-                let sum = 0;
-                for (let i = 0; i < dataArray.length; i++) {
-                    sum += dataArray[i];
-                }
-                const average = sum / dataArray.length;
-                // 音圧を0.0〜1.0の開口度に変換
-                currentVolume = Math.min(1.0, Math.max(0.0, (average - 10) / 40));
-            }
-
+            
             if (currentVrm) {
+                // 呼吸運動
                 const t = clock.getElapsedTime();
                 const chest = currentVrm.humanoid.getNormalizedBoneNode('chest');
                 if (chest) chest.rotation.x = Math.sin(t * 2) * 0.02;
 
-                // ★ リップシンク（口を開ける「aa」パラメータをリアルタイム更新）
-                if (currentVrm.expressionManager) {
-                    currentVrm.expressionManager.setValue('aa', currentVolume);
+                // ★ リップシンク（音声波形から口の開き具合を計算）
+                if (window.analyser && window.dataArray) {
+                    window.analyser.getByteFrequencyData(window.dataArray);
+                    let sum = 0;
+                    for (let i = 0; i < window.dataArray.length; i++) {
+                        sum += window.dataArray[i];
+                    }
+                    const average = sum / window.dataArray.length;
+                    
+                    // 音量を 0.0〜1.0 の口の開き具合に変換（感度調整：数値を下げると口が大きく開く）
+                    let mouthOpen = average / 40.0; 
+                    if (mouthOpen > 1.0) mouthOpen = 1.0;
+                    
+                    // VRMの口（あ行）の形に適用
+                    if (currentVrm.expressionManager) {
+                        currentVrm.expressionManager.setValue('aa', mouthOpen);
+                        currentVrm.expressionManager.update();
+                    }
                 }
 
                 currentVrm.update(delta);
