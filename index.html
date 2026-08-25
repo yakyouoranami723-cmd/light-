@@ -3,86 +3,43 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-width=1.0">
-    <title>ライト管理者ダッシュボード</title>
+    <title>AIアシスタント「ライト」</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Firebase Compat SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
 </head>
-<body class="bg-gray-100 font-sans h-screen flex">
+<body class="bg-gray-100 h-screen flex flex-col">
 
-    <!-- サイドバー -->
-    <aside class="w-64 bg-gray-900 text-white flex flex-col">
-        <div class="p-6">
-            <h1 class="text-2xl font-bold tracking-wider">Admin Panel</h1>
-            <p class="text-gray-400 text-sm mt-1">Light AI System</p>
-        </div>
-        <nav class="flex-1 p-4 space-y-2">
-            <a href="#" class="block px-4 py-2 bg-gray-800 rounded hover:bg-gray-700 transition">📝 ルール設定・履歴</a>
-            <a href="#logs" class="block px-4 py-2 hover:bg-gray-700 rounded transition">💬 会話ログ監視</a>
-        </nav>
-    </aside>
+    <!-- ヘッダー -->
+    <header class="bg-blue-600 text-white p-4 shadow-md flex items-center justify-between">
+        <h1 class="text-xl font-bold">🤖 ライト (AIアシスタント)</h1>
+        <span id="status" class="text-xs bg-yellow-400 text-black px-2 py-1 rounded-full">準備中...</span>
+    </header>
 
-    <!-- メインコンテンツ -->
-    <main class="flex-1 overflow-y-auto p-8">
+    <!-- チャット表示エリア -->
+    <main id="chat-box" class="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50"></main>
+
+    <!-- 入力エリア -->
+    <footer class="bg-white p-3 shadow-[0_-2px_10px_rgba(0,0,0,0.05)] flex items-center gap-2">
+        <label for="image-upload" class="cursor-pointer text-gray-500 hover:text-blue-600 transition p-2">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M18.375 12.739l-7.693 7.693a4.536 4.536 0 01-6.42-6.421l10.899-10.899m-7.81 8.19l-2.741 2.741a1.986 1.986 0 002.808 2.808l2.741-2.74m6.364-6.364l-2.741-2.741a1.986 1.986 0 00-2.808-2.808l2.741 2.741" /></svg>
+        </label>
+        <input type="file" id="image-upload" accept="image/*" class="hidden">
         
-        <!-- ダッシュボード統計 -->
-        <div class="grid grid-cols-2 gap-6 mb-8">
-            <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-                <h3 class="text-gray-500 text-sm font-medium">総会話数</h3>
-                <p id="total-chats" class="text-3xl font-bold text-gray-800 mt-2">0</p>
-            </div>
-            <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-                <h3 class="text-gray-500 text-sm font-medium">システム状態</h3>
-                <p class="text-xl font-bold text-green-600 mt-2 flex items-center gap-2">
-                    <span class="w-3 h-3 bg-green-500 rounded-full animate-pulse"></span> 正常稼働中
-                </p>
-            </div>
+        <div id="image-preview" class="hidden relative">
+            <img id="preview-img" class="h-10 w-10 object-cover rounded border border-gray-300">
+            <button onclick="removeImage()" class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-xs">×</button>
         </div>
 
-        <div class="grid grid-cols-1 xl:grid-cols-2 gap-8">
-            <!-- ルール編集エリア -->
-            <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-                <h2 class="text-xl font-bold text-gray-800 mb-4">🤖 ライトの全体ルール（プロンプト）</h2>
-                <textarea id="prompt-input" rows="8" class="w-full border border-gray-300 rounded p-3 focus:outline-none focus:border-blue-500" placeholder="ここにAIのルールや性格を入力..."></textarea>
-                <div class="flex justify-end gap-3 mt-4">
-                    <input type="text" id="version-note" placeholder="変更のメモ (例: 文化祭仕様)" class="border border-gray-300 rounded px-3 py-2 text-sm flex-1">
-                    <button id="save-prompt-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded transition">設定を更新</button>
-                </div>
-            </div>
-
-            <!-- ルール履歴エリア -->
-            <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-                <h2 class="text-xl font-bold text-gray-800 mb-4">🕒 ルールの変更履歴</h2>
-                <div class="h-64 overflow-y-auto border border-gray-200 rounded">
-                    <ul id="history-list" class="divide-y divide-gray-200">
-                        <!-- 履歴がここに入る -->
-                    </ul>
-                </div>
-            </div>
-        </div>
-
-        <!-- 会話ログ監視エリア -->
-        <div id="logs" class="mt-8 bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-            <h2 class="text-xl font-bold text-gray-800 mb-4">💬 リアルタイム会話ログ</h2>
-            <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse">
-                    <thead>
-                        <tr class="bg-gray-100 text-gray-600 text-sm border-b border-gray-300">
-                            <th class="p-3">日時</th>
-                            <th class="p-3">ユーザーの質問</th>
-                            <th class="p-3">ライトの回答</th>
-                        </tr>
-                    </thead>
-                    <tbody id="chat-logs-table" class="text-sm divide-y divide-gray-200">
-                        <!-- ログがここに入る -->
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </main>
+        <input type="text" id="user-input" class="flex-1 border border-gray-300 rounded-full px-4 py-2 focus:outline-none focus:border-blue-500" placeholder="ライトに質問する...">
+        <button id="send-btn" class="bg-blue-600 text-white rounded-full p-2 hover:bg-blue-700 transition">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" /></svg>
+        </button>
+    </footer>
 
     <script>
-        // --- 1. 設定情報 (index.htmlと同じものを入力) ---
+        // --- 1. 設定情報 (書き換えてください) ---
         const firebaseConfig = {
             apiKey: "YOUR_FIREBASE_API_KEY",
             authDomain: "YOUR_PROJECT.firebaseapp.com",
@@ -91,95 +48,123 @@
             messagingSenderId: "YOUR_SENDER_ID",
             appId: "YOUR_APP_ID"
         };
+        const GEMINI_API_KEY = "YOUR_GEMINI_API_KEY";
+        const GEMINI_MODEL = "gemini-1.5-flash"; // 画像認識対応
 
         // --- 2. 初期化 ---
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
+        let currentSystemPrompt = "あなたは親切なAIアシスタントです。";
+        let base64Image = null;
+        let mimeType = null;
 
-        // --- 3. ルールの読み込み・保存 ---
-        const promptInput = document.getElementById('prompt-input');
-        
-        // 現在のルールを監視
+        // --- 3. Firebaseからルール読み込み ---
         db.collection("settings").doc("systemPrompt").onSnapshot((doc) => {
-            if (doc.exists) promptInput.value = doc.data().text;
+            if (doc.exists) {
+                currentSystemPrompt = doc.data().text;
+                document.getElementById('status').innerText = "接続完了";
+                document.getElementById('status').className = "text-xs bg-green-400 text-white px-2 py-1 rounded-full";
+            }
         });
 
-        // ルール更新＆履歴保存
-        document.getElementById('save-prompt-btn').addEventListener('click', async () => {
-            const newText = promptInput.value;
-            const note = document.getElementById('version-note').value || "メモなし";
+        // --- 4. UI関連の関数 ---
+        const chatBox = document.getElementById('chat-box');
+        const userInput = document.getElementById('user-input');
+        const imageUpload = document.getElementById('image-upload');
+        const previewDiv = document.getElementById('image-preview');
+        const previewImg = document.getElementById('preview-img');
+
+        function addMessage(text, sender, imageUrl = null) {
+            const div = document.createElement('div');
+            div.className = `flex ${sender === 'user' ? 'justify-end' : 'justify-start'}`;
+            let innerHTML = `<div class="max-w-[75%] rounded-2xl p-3 ${sender === 'user' ? 'bg-blue-500 text-white rounded-br-none' : 'bg-white text-gray-800 shadow rounded-bl-none border border-gray-200'}">`;
             
-            // 現在のルールを更新
-            await db.collection("settings").doc("systemPrompt").set({ text: newText });
-            
-            // 履歴に追加
-            await db.collection("promptHistory").add({
-                text: newText,
-                note: note,
-                timestamp: firebase.firestore.FieldValue.serverTimestamp()
-            });
-            
-            document.getElementById('version-note').value = "";
-            alert('ルールを更新し、履歴に保存しました！');
+            if (imageUrl) {
+                innerHTML += `<img src="${imageUrl}" class="w-32 h-auto rounded mb-2">`;
+            }
+            innerHTML += `<p class="whitespace-pre-wrap text-sm">${text}</p></div>`;
+            div.innerHTML = innerHTML;
+            chatBox.appendChild(div);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        // --- 5. 画像添付の処理 ---
+        imageUpload.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const dataUrl = event.target.result;
+                previewImg.src = dataUrl;
+                previewDiv.classList.remove('hidden');
+                // Data URL (data:image/jpeg;base64,/9j...) から Base64部分とMIMEを抽出
+                const split = dataUrl.split(',');
+                mimeType = split[0].match(/:(.*?);/)[1];
+                base64Image = split[1];
+            };
+            reader.readAsDataURL(file);
         });
 
-        // --- 4. 履歴リストの表示 ---
-        const historyList = document.getElementById('history-list');
-        db.collection("promptHistory").orderBy("timestamp", "desc").onSnapshot((snapshot) => {
-            historyList.innerHTML = "";
-            snapshot.forEach((doc) => {
-                const data = doc.data();
-                const date = data.timestamp ? data.timestamp.toDate().toLocaleString('ja-JP') : "保存中...";
+        function removeImage() {
+            base64Image = null;
+            mimeType = null;
+            imageUpload.value = '';
+            previewDiv.classList.add('hidden');
+        }
+
+        // --- 6. 送信＆Gemini API通信 ---
+        document.getElementById('send-btn').addEventListener('click', async () => {
+            const text = userInput.value.trim();
+            if (!text && !base64Image) return;
+
+            // UI反映
+            const tempImgUrl = base64Image ? previewImg.src : null;
+            addMessage(text || "（画像送信）", 'user', tempImgUrl);
+            userInput.value = '';
+            removeImage();
+
+            // Gemini APIのリクエストボディ作成
+            const contents = [];
+            if (base64Image) {
+                contents.push({ inline_data: { mime_type: mimeType, data: base64Image } });
+            }
+            if (text) {
+                contents.push({ text: text });
+            }
+
+            const requestBody = {
+                system_instruction: { parts: [{ text: currentSystemPrompt }] },
+                contents: [{ parts: contents }]
+            };
+
+            try {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(requestBody)
+                });
                 
-                const li = document.createElement('li');
-                li.className = "p-3 hover:bg-gray-50 flex justify-between items-center";
-                li.innerHTML = `
-                    <div>
-                        <p class="font-bold text-sm text-gray-800">${data.note}</p>
-                        <p class="text-xs text-gray-500">${date}</p>
-                    </div>
-                    <button onclick="restorePrompt('${doc.id}')" class="text-xs bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1 rounded">復元</button>
-                `;
-                historyList.appendChild(li);
-            });
+                const data = await response.json();
+                const aiText = data.candidates[0].content.parts[0].text;
+                addMessage(aiText, 'ai');
+
+                // Firebaseに会話ログを保存
+                db.collection("chatLogs").add({
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                    userText: text,
+                    aiText: aiText,
+                    hasImage: tempImgUrl !== null
+                });
+
+            } catch (error) {
+                console.error(error);
+                addMessage("エラーが発生しました。通信環境を確認してください。", 'ai');
+            }
         });
 
-        // 復元機能
-        window.restorePrompt = async (docId) => {
-            if(!confirm("このバージョンに復元しますか？")) return;
-            const docRef = await db.collection("promptHistory").doc(docId).get();
-            const textToRestore = docRef.data().text;
-            
-            // ルールを復元
-            await db.collection("settings").doc("systemPrompt").set({ text: textToRestore });
-            // 「復元」という記録を履歴に追加
-            await db.collection("promptHistory").add({
-                text: textToRestore,
-                note: `[復元] ${docRef.data().note}`,
-                timestamp: firebase.firestore.FieldValue.serverTimestamp()
-            });
-        };
-
-        // --- 5. 会話ログの表示とカウント ---
-        const chatLogsTable = document.getElementById('chat-logs-table');
-        const totalChatsDisplay = document.getElementById('total-chats');
-
-        db.collection("chatLogs").orderBy("timestamp", "desc").limit(100).onSnapshot((snapshot) => {
-            chatLogsTable.innerHTML = "";
-            totalChatsDisplay.innerText = snapshot.size; // 簡易的に最近100件の数を表示（全件取得はコストがかかるため制限）
-
-            snapshot.forEach((doc) => {
-                const data = doc.data();
-                const date = data.timestamp ? data.timestamp.toDate().toLocaleString('ja-JP', {month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit'}) : "-";
-                
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td class="p-3 text-xs text-gray-500 whitespace-nowrap">${date}</td>
-                    <td class="p-3 text-gray-800 max-w-xs truncate" title="${data.userText}">${data.hasImage ? '📷 ' : ''}${data.userText || '(画像のみ)'}</td>
-                    <td class="p-3 text-gray-600 max-w-md truncate" title="${data.aiText}">${data.aiText}</td>
-                `;
-                chatLogsTable.appendChild(tr);
-            });
+        // Enterキーで送信
+        userInput.addEventListener("keypress", (e) => {
+            if (e.key === "Enter") document.getElementById('send-btn').click();
         });
     </script>
 </body>
