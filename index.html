@@ -2,176 +2,185 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ライト 管理者ダッシュボード</title>
-    <!-- Tailwind CSS for modern styling -->
+    <meta name="viewport" content="width=device-width, initial-width=1.0">
+    <title>ライト管理者ダッシュボード</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Firebase SDK (Compat v9) -->
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
 </head>
-<body class="bg-gray-50 text-gray-800 min-h-screen">
+<body class="bg-gray-100 font-sans h-screen flex">
 
-    <!-- ヘッダー -->
-    <header class="bg-indigo-600 text-white shadow">
-        <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-            <h1 class="text-xl font-bold">💡 ライト 管理者ダッシュボード</h1>
-            <span id="connection-status" class="text-xs bg-indigo-500 px-3 py-1 rounded-full">接続確認中...</span>
+    <!-- サイドバー -->
+    <aside class="w-64 bg-gray-900 text-white flex flex-col">
+        <div class="p-6">
+            <h1 class="text-2xl font-bold tracking-wider">Admin Panel</h1>
+            <p class="text-gray-400 text-sm mt-1">Light AI System</p>
         </div>
-    </header>
+        <nav class="flex-1 p-4 space-y-2">
+            <a href="#" class="block px-4 py-2 bg-gray-800 rounded hover:bg-gray-700 transition">📝 ルール設定・履歴</a>
+            <a href="#logs" class="block px-4 py-2 hover:bg-gray-700 rounded transition">💬 会話ログ監視</a>
+        </nav>
+    </aside>
 
-    <main class="max-w-7xl mx-auto px-4 py-8 space-y-8">
+    <!-- メインコンテンツ -->
+    <main class="flex-1 overflow-y-auto p-8">
+        
+        <!-- ダッシュボード統計 -->
+        <div class="grid grid-cols-2 gap-6 mb-8">
+            <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+                <h3 class="text-gray-500 text-sm font-medium">総会話数</h3>
+                <p id="total-chats" class="text-3xl font-bold text-gray-800 mt-2">0</p>
+            </div>
+            <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+                <h3 class="text-gray-500 text-sm font-medium">システム状態</h3>
+                <p class="text-xl font-bold text-green-600 mt-2 flex items-center gap-2">
+                    <span class="w-3 h-3 bg-green-500 rounded-full animate-pulse"></span> 正常稼働中
+                </p>
+            </div>
+        </div>
 
-        <!-- 📊 ダッシュボード・統計カードセクション -->
-        <section class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div class="bg-white p-6 rounded-xl shadow border border-gray-100">
-                <p class="text-sm font-medium text-gray-500">総会話ログ数</p>
-                <p id="stat-total-logs" class="text-3xl font-bold text-indigo-600 mt-2">-</p>
+        <div class="grid grid-cols-1 xl:grid-cols-2 gap-8">
+            <!-- ルール編集エリア -->
+            <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+                <h2 class="text-xl font-bold text-gray-800 mb-4">🤖 ライトの全体ルール（プロンプト）</h2>
+                <textarea id="prompt-input" rows="8" class="w-full border border-gray-300 rounded p-3 focus:outline-none focus:border-blue-500" placeholder="ここにAIのルールや性格を入力..."></textarea>
+                <div class="flex justify-end gap-3 mt-4">
+                    <input type="text" id="version-note" placeholder="変更のメモ (例: 文化祭仕様)" class="border border-gray-300 rounded px-3 py-2 text-sm flex-1">
+                    <button id="save-prompt-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded transition">設定を更新</button>
+                </div>
             </div>
-            <div class="bg-white p-6 rounded-xl shadow border border-gray-100">
-                <p class="text-sm font-medium text-gray-500">現在のシステム設定</p>
-                <p id="stat-current-mode" class="text-lg font-semibold text-gray-700 mt-2 truncate">読み込み中...</p>
-            </div>
-            <div class="bg-white p-6 rounded-xl shadow border border-gray-100">
-                <p class="text-sm font-medium text-gray-500">ステータス</p>
-                <p class="text-lg font-semibold text-emerald-600 mt-2">正常稼働中 🟢</p>
-            </div>
-        </section>
 
-        <!-- ⚙️ プロンプト（ルール）編集セクション -->
-        <section class="bg-white p-6 rounded-xl shadow border border-gray-100">
-            <h2 class="text-lg font-bold text-gray-700 mb-4">ライトの性格・ルールの変更（共通プロンプト）</h2>
-            <p class="text-sm text-gray-500 mb-3">ここに記述した内容が、部員側アプリのライトの挙動にリアルタイムで反映されます。</p>
-            <textarea id="prompt-input" rows="4" class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none font-mono text-sm" placeholder="ルールを入力..."></textarea>
-            <div class="mt-4 flex justify-end">
-                <button onclick="savePrompt()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-6 py-2 rounded-lg shadow transition">
-                    ルールを保存して適用
-                </button>
+            <!-- ルール履歴エリア -->
+            <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+                <h2 class="text-xl font-bold text-gray-800 mb-4">🕒 ルールの変更履歴</h2>
+                <div class="h-64 overflow-y-auto border border-gray-200 rounded">
+                    <ul id="history-list" class="divide-y divide-gray-200">
+                        <!-- 履歴がここに入る -->
+                    </ul>
+                </div>
             </div>
-        </section>
+        </div>
 
-        <!-- 💬 会話履歴確認セクション -->
-        <section class="bg-white p-6 rounded-xl shadow border border-gray-100">
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="text-lg font-bold text-gray-700">生徒との会話履歴</h2>
-                <button onclick="loadLogs()" class="text-sm text-indigo-600 hover:underline">🔄 履歴を更新</button>
-            </div>
+        <!-- 会話ログ監視エリア -->
+        <div id="logs" class="mt-8 bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+            <h2 class="text-xl font-bold text-gray-800 mb-4">💬 リアルタイム会話ログ</h2>
             <div class="overflow-x-auto">
                 <table class="w-full text-left border-collapse">
                     <thead>
-                        <tr class="bg-gray-100 text-xs text-gray-600 uppercase">
+                        <tr class="bg-gray-100 text-gray-600 text-sm border-b border-gray-300">
                             <th class="p-3">日時</th>
                             <th class="p-3">ユーザーの質問</th>
-                            <th class="p-3">ライトの返答</th>
+                            <th class="p-3">ライトの回答</th>
                         </tr>
                     </thead>
-                    <tbody id="logs-table-body" class="divide-y divide-gray-200 text-sm">
-                        <tr>
-                            <td colspan="3" class="p-4 text-center text-gray-400">履歴を読み込んでいます...</td>
-                        </tr>
+                    <tbody id="chat-logs-table" class="text-sm divide-y divide-gray-200">
+                        <!-- ログがここに入る -->
                     </tbody>
                 </table>
             </div>
-        </section>
-
+        </div>
     </main>
 
-    <!-- Firebase設定 & ロジック -->
     <script>
-        // -----------------------------------------------------------------
-        // ⚠️ ご自身のFirebase設定（プロジェクトに合わせて書き換えてください）
-        // -----------------------------------------------------------------
+        // --- 1. 設定情報 (index.htmlと同じものを入力) ---
         const firebaseConfig = {
             apiKey: "YOUR_FIREBASE_API_KEY",
-            authDomain: "YOUR_FIREBASE_AUTH_DOMAIN",
-            projectId: "YOUR_FIREBASE_PROJECT_ID",
-            storageBucket: "YOUR_FIREBASE_STORAGE_BUCKET",
-            messagingSenderId: "YOUR_FIREBASE_MESSAGING_SENDER_ID",
-            appId: "YOUR_FIREBASE_APP_ID"
+            authDomain: "YOUR_PROJECT.firebaseapp.com",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_PROJECT.appspot.com",
+            messagingSenderId: "YOUR_SENDER_ID",
+            appId: "YOUR_APP_ID"
         };
 
-        // Firebase初期化
+        // --- 2. 初期化 ---
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
-        // 接続確認表示の更新
-        document.getElementById('connection-status').textContent = "Firebase接続完了";
-        document.getElementById('connection-status').className = "text-xs bg-emerald-500 px-3 py-1 rounded-full text-white";
+        // --- 3. ルールの読み込み・保存 ---
+        const promptInput = document.getElementById('prompt-input');
+        
+        // 現在のルールを監視
+        db.collection("settings").doc("systemPrompt").onSnapshot((doc) => {
+            if (doc.exists) promptInput.value = doc.data().text;
+        });
 
-        // プロンプト（ルール）を読み込む
-        async function loadPrompt() {
-            try {
-                const doc = await db.collection("settings").doc("systemPrompt").get();
-                if (doc.exists) {
-                    const text = doc.data().text || "";
-                    document.getElementById('prompt-input').value = text;
-                    document.getElementById('stat-current-mode').textContent = text.substring(0, 20) + (text.length > 20 ? '...' : '');
-                } else {
-                    document.getElementById('stat-current-mode').textContent = "未設定";
-                }
-            } catch (e) {
-                console.error("プロンプト読み込みエラー:", e);
-            }
-        }
+        // ルール更新＆履歴保存
+        document.getElementById('save-prompt-btn').addEventListener('click', async () => {
+            const newText = promptInput.value;
+            const note = document.getElementById('version-note').value || "メモなし";
+            
+            // 現在のルールを更新
+            await db.collection("settings").doc("systemPrompt").set({ text: newText });
+            
+            // 履歴に追加
+            await db.collection("promptHistory").add({
+                text: newText,
+                note: note,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            
+            document.getElementById('version-note').value = "";
+            alert('ルールを更新し、履歴に保存しました！');
+        });
 
-        // プロンプトを保存する
-        async function savePrompt() {
-            const text = document.getElementById('prompt-input').value;
-            try {
-                await db.collection("settings").doc("systemPrompt").set({ text: text });
-                alert("ルールを更新しました！部員側のアプリに反映されます。");
-                loadPrompt();
-            } catch (e) {
-                alert("保存に失敗しました: " + e.message);
-            }
-        }
-
-        // 会話履歴と統計データを読み込む
-        async function loadLogs() {
-            const tbody = document.getElementById('logs-table-body');
-            tbody.innerHTML = '<tr><td colspan="3" class="p-4 text-center text-gray-400">読み込み中...</td></tr>';
-
-            try {
-                const snapshot = await db.collection("chatLogs").orderBy("timestamp", "desc").limit(20).get();
+        // --- 4. 履歴リストの表示 ---
+        const historyList = document.getElementById('history-list');
+        db.collection("promptHistory").orderBy("timestamp", "desc").onSnapshot((snapshot) => {
+            historyList.innerHTML = "";
+            snapshot.forEach((doc) => {
+                const data = doc.data();
+                const date = data.timestamp ? data.timestamp.toDate().toLocaleString('ja-JP') : "保存中...";
                 
-                // ダッシュボードの総会話数を更新
-                document.getElementById('stat-total-logs').textContent = snapshot.size + (snapshot.size >= 20 ? "件以上" : "件");
+                const li = document.createElement('li');
+                li.className = "p-3 hover:bg-gray-50 flex justify-between items-center";
+                li.innerHTML = `
+                    <div>
+                        <p class="font-bold text-sm text-gray-800">${data.note}</p>
+                        <p class="text-xs text-gray-500">${date}</p>
+                    </div>
+                    <button onclick="restorePrompt('${doc.id}')" class="text-xs bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1 rounded">復元</button>
+                `;
+                historyList.appendChild(li);
+            });
+        });
 
-                if (snapshot.empty) {
-                    tbody.innerHTML = '<tr><td colspan="3" class="p-4 text-center text-gray-400">まだ会話履歴がありません。</td></tr>';
-                    return;
-                }
-
-                tbody.innerHTML = "";
-                snapshot.forEach(doc => {
-                    const data = doc.data();
-                    const dateStr = data.timestamp ? new Date(data.timestamp.toDate()).toLocaleString() : "日時不明";
-                    
-                    const tr = document.createElement('tr');
-                    tr.className = "hover:bg-gray-50";
-                    tr.innerHTML = `
-                        <td class="p-3 text-xs text-gray-500 whitespace-nowrap">${dateStr}</td>
-                        <td class="p-3 font-medium text-gray-800">${escapeHtml(data.user || "")}</td>
-                        <td class="p-3 text-gray-600">${escapeHtml(data.ai || "")}</td>
-                    `;
-                    tbody.appendChild(tr);
-                });
-            } catch (e) {
-                tbody.innerHTML = `<tr><td colspan="3" class="p-4 text-center text-red-500">履歴の取得に失敗しました（インデックス未作成の可能性があります）</td></tr>`;
-                console.error(e);
-            }
-        }
-
-        // HTMLエスケープ（セキュリティ対策）
-        function escapeHtml(str) {
-            return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
-        }
-
-        // ページ読み込み時に実行
-        window.onload = () => {
-            loadPrompt();
-            loadLogs();
+        // 復元機能
+        window.restorePrompt = async (docId) => {
+            if(!confirm("このバージョンに復元しますか？")) return;
+            const docRef = await db.collection("promptHistory").doc(docId).get();
+            const textToRestore = docRef.data().text;
+            
+            // ルールを復元
+            await db.collection("settings").doc("systemPrompt").set({ text: textToRestore });
+            // 「復元」という記録を履歴に追加
+            await db.collection("promptHistory").add({
+                text: textToRestore,
+                note: `[復元] ${docRef.data().note}`,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            });
         };
+
+        // --- 5. 会話ログの表示とカウント ---
+        const chatLogsTable = document.getElementById('chat-logs-table');
+        const totalChatsDisplay = document.getElementById('total-chats');
+
+        db.collection("chatLogs").orderBy("timestamp", "desc").limit(100).onSnapshot((snapshot) => {
+            chatLogsTable.innerHTML = "";
+            totalChatsDisplay.innerText = snapshot.size; // 簡易的に最近100件の数を表示（全件取得はコストがかかるため制限）
+
+            snapshot.forEach((doc) => {
+                const data = doc.data();
+                const date = data.timestamp ? data.timestamp.toDate().toLocaleString('ja-JP', {month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit'}) : "-";
+                
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="p-3 text-xs text-gray-500 whitespace-nowrap">${date}</td>
+                    <td class="p-3 text-gray-800 max-w-xs truncate" title="${data.userText}">${data.hasImage ? '📷 ' : ''}${data.userText || '(画像のみ)'}</td>
+                    <td class="p-3 text-gray-600 max-w-md truncate" title="${data.aiText}">${data.aiText}</td>
+                `;
+                chatLogsTable.appendChild(tr);
+            });
+        });
     </script>
 </body>
 </html>
